@@ -9,7 +9,7 @@ using namespace std;
 template <typename T>
 class Polynomial {
 private:
-    std::vector<T> coefficients;
+    vector<T> coefficients;
 
 public:
     Polynomial() {}
@@ -18,7 +18,7 @@ public:
     Polynomial(size_t maxDegree) : coefficients(maxDegree + 1, 0) {}
 
     //Конструктор с параметрами: Вектор значений при соответствующих степенях
-    Polynomial(const std::vector<T>& values) : coefficients(values.size()) {
+    Polynomial(const vector<T>& values) : coefficients(values.size()) {
         for (size_t i = 0; i < values.size(); ++i) {
             coefficients[i] = values[i];
         }
@@ -30,7 +30,7 @@ public:
             coefficients[power] = value;
         }
         else {
-            throw std::out_of_range("Invalid power value");
+            throw out_of_range("Invalid power value");
         }
     }
 
@@ -52,27 +52,126 @@ public:
         }
     }
 
-    T get_coefficient(int degree) const {
-        if (degree < coefficients.size()) {
-            return coefficients[degree];
+    //Вычисление значения многочлена при указанном значении х
+    T calculation(T x) {
+        T result = T{ 0 };
+        T power = T{ 1 };
+        for (const auto& coef : coefficients) {
+            result += coef * power;
+            power *= x;
         }
-        return T();
+        return result;
     }
 
-    int get_degree() const {
-        return coefficients.size() - 1;
+    //оператор [] для чтения коэффициента при заданной степени
+    T operator[](size_t power) const {
+        if (power >= 0 && power < coefficients.size()) {
+            return coefficients[power];
+        }
+        else {
+            return 0; // Если степень отсутствует, вернем 0
+        }
     }
 
+    //оператор сложения
+    Polynomial operator+(const Polynomial& other) const {
+        Polynomial result;
+        size_t minSize = min(coefficients.size(), other.coefficients.size());
+        size_t maxSize = max(coefficients.size(), other.coefficients.size());
+
+        result.coefficients.resize(maxSize);
+
+        for (size_t i = 0; i < minSize; ++i) {
+            result.coefficients[i] = coefficients[i] + other.coefficients[i];
+        }
+
+        const auto& largerCoeff = (coefficients.size() > other.coefficients.size()) ? coefficients : other.coefficients;
+
+        for (size_t i = minSize; i < maxSize; ++i) {
+            result.coefficients[i] = largerCoeff[i];
+        }
+
+        return result;
+    }
+
+    //оператор вычитания
+    Polynomial operator-(const Polynomial& other) const {
+        Polynomial result;
+        size_t minSize = min(coefficients.size(), other.coefficients.size());
+        size_t maxSize = max(coefficients.size(), other.coefficients.size());
+
+        result.coefficients.resize(maxSize);
+
+        for (size_t i = 0; i < minSize; ++i) {
+            result.coefficients[i] = coefficients[i] - other.coefficients[i];
+        }
+
+        const auto& largerCoeff = (coefficients.size() > other.coefficients.size()) ? coefficients : other.coefficients;
+
+        for (size_t i = minSize; i < maxSize; ++i) {
+            result.coefficients[i] = largerCoeff[i];
+        }
+
+        return result;
+    }
+
+    //оператор умножения многочлена на скаляр
+    Polynomial operator*(const T& scalar) {
+        Polynomial result = *this;
+        for (auto& coeff : result.coefficients) {
+            coeff *= scalar;
+        }
+        return result;
+    }
 };
 
+//перегрука оператора вывода
+template <typename T>
+ostream& operator<<(ostream& os, const Polynomial<T>& poly) {
+    for (int i = poly.coefficients.size() - 1; i >= 0; --i) {
+        if (poly.coefficients[i] != 0) {
+            if (i < poly.coefficients.size() - 1) {
+                os << " + ";
+            }
+            os << poly.coefficients[i];
+            if (i > 0) {
+                os << "x";
+                if (i > 1) {
+                    os << "^" << i;
+                }
+            }
+        }
+    }
+    return os;
+}
+
+// Перегрузка оператора равенства (==)
+bool operator==(const Polynomial& other) const {
+    return coefficients == other.coefficients;
+};
+
+// Перегрузка оператора неравенства (!=)
+bool operator!=(const Polynomial& other) const {
+    return coefficients != other.coefficients;
+}
+};
+
+
 int main() {
-    std::vector<int> coeffs1 = { 1, 2, 3 }; // многочлен 1 + 2x + 3x^2
-    Polynomial<int> poly1(coeffs1);
+    // Создаем объект многочлена без коэффициентов
+    Polynomial<int> poly1;
 
-    std::vector<int> coeffs2 = { 4, 5 }; // многочлен 4 + 5x
-    Polynomial<int> poly2(coeffs2);
+    // Создаем объект многочлена с максимальной степенью 3
+    Polynomial<int> poly2(3);
 
-    //Polynomial<int> sum = poly1 + poly2; // сложение многочленов
+    // Создаем объект многочлена со значениями коэффициентов
+    vector<float> values = { 2.0, 3.0, 1.0 };
+    Polynomial<float> poly3(values);
+
+    // Используем метод set_сoefficient для установки коэффициента при заданной степени
+    poly3.set_сoefficient(2, 5.0);
+
+    cout << poly1 << endl << poly2 << endl;
 
     return 0;
 }
