@@ -1,177 +1,196 @@
-#include <cmath>
-#include <cstdlib> 
-#include <iostream> 
-#include <vector> 
+#include <iostream>
+#include <memory>
 
 using namespace std;
 
-
-template <typename T>
+template<typename T>
 class Polynomial {
 private:
-    vector<T> coefficients;
+    T* coefficients;
+    int degree;
+    static constexpr double epsilon = 1e-6;
 
 public:
-    Polynomial() {}
-
-    //Конструктор с параметрами: Максимальная степень многочлена
-    Polynomial(size_t maxDegree) : coefficients(maxDegree + 1, 0) {}
-
-    //Конструктор с параметрами: Вектор значений при соответствующих степенях
-    Polynomial(const vector<T>& values) : coefficients(values.size()) {
-        for (size_t i = 0; i < values.size(); ++i) {
-            coefficients[i] = values[i];
-        }
+    Polynomial(int degree = 0) : degree(degree) {
+        coefficients = new T[degree + 1]{};
     }
 
-    //Метод set для установки коэффициента при заданной степени
-    void set_сoefficient(size_t power, T value) {
-        if (power <= coefficients.size() - 1) { 
-            coefficients[power] = value;
-        }
-        else {
-            throw out_of_range("Invalid power value");
-        }
+    Polynomial(const Polynomial<T>& other) : degree(other.degree) {
+        coefficients = new T[degree + 1];
+
+        for (int i = 0; i <= degree; i++)
+            coefficients[i] = other.coefficients[i];
     }
 
-    //Метод shrink_to_fit, уменьшающий размер многочлена до минимально возможного при наличии ведущих нулей
+    ~Polynomial() {
+        delete[] coefficients;
+    }
+
+    T operator[](int degree) const {
+        if (degree < 0 || degree > this->degree)
+            return 0;
+
+        return coefficients[degree];
+    }
+
+    void set(int degree, T value) {
+        if (degree < 0)
+            return;
+
+        if (degree > this->degree)
+            resize(degree);
+
+        coefficients[degree] = value;
+    }
+
+    Polynomial<T> operator+(const Polynomial<T>& other) const {
+        int maxDegree = max(degree, other.degree);
+        Polynomial<T> result(maxDegree);
+
+        for (int i = 0; i <= maxDegree; i++)
+            result.set(i, (*this)[i] + other[i]);
+
+        return result;
+    }
+
+    Polynomial<T> operator-(const Polynomial<T>& other) const {
+        int maxDegree = max(degree, other.degree);
+        Polynomial<T> result(maxDegree);
+
+        for (int i = 0; i <= maxDegree; i++)
+            result.set(i, (*this)[i] - other[i]);
+
+        return result;
+    }
+
+    Polynomial<T> operator*(T scalar) const {
+        Polynomial<T> result(degree);
+
+        for (int i = 0; i <= degree; i++)
+            result.set(i, (*this)[i] * scalar);
+
+        return result;
+    }
+
+    T evaluate(T x) const {
+        T result = 0;
+        T xPower = 1;
+
+        for (int i = 0; i <= degree; i++) {
+            result += coefficients[i] * xPower;
+            xPower *= x;
+        }
+
+        return result;
+    }
+
     void shrink_to_fit() {
-        int leadingZeros = 0;
-        for (int i = coefficients.size() - 1; i >= 0; i--) {
-            if (coefficients[i] == 0) {
-                leadingZeros++;
-            }
+        int newDegree = degree;
+
+        for (int i = degree; i >= 0; i--) {
+            if (coefficients[i] != 0)
+                break;
+
+            newDegree--;
         }
-        coefficients.resize(coefficients.size() - leadingZeros);
+
+        resize(newDegree);
     }
 
-    //Метод expand, резервирующих память под более высокие степени с коэффициентом 0
-    void expand(size_t new_size) {
-        if (new_size > coefficients.size()) {
-            coefficients.resize(new_size, T{ 0 }); // Заполняем новые элементы нулями
-        }
+    void expand(int newDegree) {
+        if (newDegree <= degree)
+            return;
+
+        T* newCoefficients = new T[newDegree + 1]{};
+
+        for (int i = 0; i <= degree; i++)
+            newCoefficients[i] = coefficients[i];
+
+        delete[] coefficients;
+        coefficients = newCoefficients;
+        degree = newDegree;
     }
 
-    //Вычисление значения многочлена при указанном значении х
-    T calculation(T x) {
-        T result = T{ 0 };
-        T power = T{ 1 };
-        for (const auto& coef : coefficients) {
-            result += coef * power;
-            power *= x;
-        }
-        return result;
+    void resize(int newDegree) {
+        T* newCoefficients = new T[newDegree + 1]{};
+
+        for (int i = 0; i <= degree && i <= newDegree; i++)
+            newCoefficients[i] = coefficients[i];
+
+        delete[] coefficients;
+        coefficients = newCoefficients;
+        degree = newDegree;
     }
 
-    //оператор [] для чтения коэффициента при заданной степени
-    T operator[](size_t power) const {
-        if (power >= 0 && power < coefficients.size()) {
-            return coefficients[power];
+    int getDegree() const {
+        return degree;
+    }
+
+    bool operator==(const Polynomial<T>& other) const {
+        if (degree != other.degree)
+            return false;
+
+        for (int i = 0; i <= degree; i++) {
+            if (abs(coefficients[i] - other.coefficients[i]) > epsilon)
+                return false;
+        }
+
+        return true;
+    }
+
+    bool operator!=(const Polynomial<T>& other) const {
+        return !(*this == other);
+    }
+};
+
+template<typename T>
+double findRoot(const Polynomial<T>& poly) {
+    if (poly[1] == 0)
+        return numeric_limits<double>::quiet_NaN();
+
+    return -poly[0] / poly[1];
+}
+
+template<typename T>
+pair<float, float> findRoots(const Polynomial<T>& poly) {
+    pair<float, float> roots;
+
+    if (poly[2] == 0) {
+        float root = findRoot(poly);
+        roots.first = root;
+        roots.second = root;
+    }
+    else {
+        float discriminant = poly[1] * poly[1] - 4 * poly[2] * poly[0];
+
+        if (discriminant < 0) {
+            roots.first = numeric_limits<float>::quiet_NaN();
+            roots.second = numeric_limits<float>::quiet_NaN();
         }
         else {
-            return 0; // Если степень отсутствует, вернем 0
+            roots.first = (-poly[1] + sqrt(discriminant)) / (2 * poly[2]);
+            roots.second = (-poly[1] - sqrt(discriminant)) / (2 * poly[2]);
         }
     }
 
-    //оператор сложения
-    Polynomial operator+(const Polynomial& other) const {
-        Polynomial result;
-        size_t minSize = min(coefficients.size(), other.coefficients.size());
-        size_t maxSize = max(coefficients.size(), other.coefficients.size());
-
-        result.coefficients.resize(maxSize);
-
-        for (size_t i = 0; i < minSize; ++i) {
-            result.coefficients[i] = coefficients[i] + other.coefficients[i];
-        }
-
-        const auto& largerCoeff = (coefficients.size() > other.coefficients.size()) ? coefficients : other.coefficients;
-
-        for (size_t i = minSize; i < maxSize; ++i) {
-            result.coefficients[i] = largerCoeff[i];
-        }
-
-        return result;
-    }
-
-    //оператор вычитания
-    Polynomial operator-(const Polynomial& other) const {
-        Polynomial result;
-        size_t minSize = min(coefficients.size(), other.coefficients.size());
-        size_t maxSize = max(coefficients.size(), other.coefficients.size());
-
-        result.coefficients.resize(maxSize);
-
-        for (size_t i = 0; i < minSize; ++i) {
-            result.coefficients[i] = coefficients[i] - other.coefficients[i];
-        }
-
-        const auto& largerCoeff = (coefficients.size() > other.coefficients.size()) ? coefficients : other.coefficients;
-
-        for (size_t i = minSize; i < maxSize; ++i) {
-            result.coefficients[i] = largerCoeff[i];
-        }
-
-        return result;
-    }
-
-    //оператор умножения многочлена на скаляр
-    Polynomial operator*(const T& scalar) {
-        Polynomial result = *this;
-        for (auto& coeff : result.coefficients) {
-            coeff *= scalar;
-        }
-        return result;
-    }
-};
-
-//перегрука оператора вывода
-template <typename T>
-ostream& operator<<(ostream& os, const Polynomial<T>& poly) {
-    for (int i = poly.coefficients.size() - 1; i >= 0; --i) {
-        if (poly.coefficients[i] != 0) {
-            if (i < poly.coefficients.size() - 1) {
-                os << " + ";
-            }
-            os << poly.coefficients[i];
-            if (i > 0) {
-                os << "x";
-                if (i > 1) {
-                    os << "^" << i;
-                }
-            }
-        }
-    }
-    return os;
+    return roots;
 }
-
-// Перегрузка оператора равенства (==)
-bool operator==(const Polynomial& other) const {
-    return coefficients == other.coefficients;
-};
-
-// Перегрузка оператора неравенства (!=)
-bool operator!=(const Polynomial& other) const {
-    return coefficients != other.coefficients;
-}
-};
-
 
 int main() {
-    // Создаем объект многочлена без коэффициентов
-    Polynomial<int> poly1;
+    Polynomial<int> poly1(1);
+    poly1.set(1, 3);
+    poly1.set(0, -3);
 
-    // Создаем объект многочлена с максимальной степенью 3
-    Polynomial<int> poly2(3);
+    Polynomial<int> poly2(2);
+    poly2.set(2, 1);
+    poly2.set(1, -10);
+    poly2.set(0, 25);
 
-    // Создаем объект многочлена со значениями коэффициентов
-    vector<float> values = { 2.0, 3.0, 1.0 };
-    Polynomial<float> poly3(values);
+    float root1 = findRoot(poly1);
+    pair<double, double> roots2 = findRoots(poly2);
 
-    // Используем метод set_сoefficient для установки коэффициента при заданной степени
-    poly3.set_сoefficient(2, 5.0);
-
-    cout << poly1 << endl << poly2 << endl;
+    cout << "Root of poly1: " << root1 << endl;
+    cout << "Roots of poly2: " << roots2.first << ", " << roots2.second << endl;
 
     return 0;
 }
