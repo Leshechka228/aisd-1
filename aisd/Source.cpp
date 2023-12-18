@@ -1,5 +1,9 @@
-#include <iostream>
+#include <complex>
+#include <utility>
+#include <cmath>
+#include <limits>
 #include <memory>
+#include <iostream>
 
 using namespace std;
 
@@ -11,7 +15,8 @@ private:
     static constexpr double epsilon = 1e-6;
 
 public:
-    Polynomial(int degree = 0) : degree(degree) {
+
+    Polynomial(int maxDegree = 0) : degree(maxDegree) {
         coefficients = new T[degree + 1]{};
     }
 
@@ -89,7 +94,7 @@ public:
 
         for (int i = degree; i >= 0; i--) {
             if (coefficients[i] != 0)
-                break;
+                continue;
 
             newDegree--;
         }
@@ -141,6 +146,28 @@ public:
     bool operator!=(const Polynomial<T>& other) const {
         return !(*this == other);
     }
+
+    friend ostream& operator<<(ostream& os, const Polynomial<T>& polynomial) {
+        for (int i = polynomial.degree; i >= 0; i--) {
+            T coefficient = polynomial.coefficients[i];
+
+            if (abs(coefficient) > polynomial.epsilon) {
+                if (coefficient > 0 && i != polynomial.degree)
+                    os << " + ";
+                else if (coefficient < 0)
+                    os << " - ";
+
+                os << abs(coefficient);
+
+                if (i > 0)
+                    os << "x";
+
+                if (i > 1)
+                    os << "^" << i;
+            }
+        }
+        return os;
+    }
 };
 
 template<typename T>
@@ -180,11 +207,13 @@ int main() {
     Polynomial<int> poly1(1);
     poly1.set(1, 3);
     poly1.set(0, -3);
+    cout << poly1 << endl;
 
     Polynomial<int> poly2(2);
     poly2.set(2, 1);
-    poly2.set(1, -10);
-    poly2.set(0, 25);
+    poly2.set(1, 3);
+    poly2.set(0, -5);
+    cout << poly2 << endl;
 
     float root1 = findRoot(poly1);
     pair<double, double> roots2 = findRoots(poly2);
